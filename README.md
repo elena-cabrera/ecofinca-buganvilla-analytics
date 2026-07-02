@@ -14,6 +14,7 @@ POC de dashboard privado para gestionar el histórico de reservas de una casa ru
 
 ```bash
 uv sync
+export RURAL_DASHBOARD_PASSWORD="tu-contraseña"
 uv run streamlit run app.py
 ```
 

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import io
+import os
 import re
+import secrets
 
 import polars as pl
 import streamlit as st
@@ -20,6 +22,39 @@ st.set_page_config(
 )
 
 MONTH_LABELS = {value: name.capitalize() for name, value in MONTH_NAMES.items()}
+PASSWORD_ENV_VAR = "RURAL_DASHBOARD_PASSWORD"
+
+
+def require_auth() -> None:
+  """
+  Gate the app behind a password read from environment variables.
+
+  Reads `RURAL_DASHBOARD_PASSWORD` and stores authentication in session state.
+  """
+  expected_password = os.getenv(PASSWORD_ENV_VAR)
+  if not expected_password:
+    st.error(f"Configura la variable de entorno `{PASSWORD_ENV_VAR}`.")
+    st.stop()
+
+  if st.session_state.get("authenticated"):
+    return
+
+  st.title("Ecofinca Buganvilla Analytics")
+  st.caption("Acceso privado")
+  password = st.text_input("Contraseña", type="password")
+  if st.button("Entrar", type="primary"):
+    if secrets.compare_digest(password, expected_password):
+      st.session_state["authenticated"] = True
+      st.rerun()
+    st.error("Contraseña incorrecta")
+  st.stop()
+
+
+def _render_logout() -> None:
+  """Render a sidebar logout control when the user is authenticated."""
+  if st.sidebar.button("Cerrar sesión"):
+    st.session_state.pop("authenticated", None)
+    st.rerun()
 
 
 def _infer_workbook_period(filename: str, sheet_summaries: list[dict[str, object]]) -> tuple[int | None, int | None]:
@@ -421,6 +456,8 @@ def page_archivos() -> None:
 
 def main() -> None:
   """Run the Streamlit multi-page application."""
+  require_auth()
+  _render_logout()
   db.init_db()
 
   page = st.sidebar.radio("Navegación", ["Dashboard", "Archivos"], index=0)
